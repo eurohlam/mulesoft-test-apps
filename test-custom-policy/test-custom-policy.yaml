@@ -1,0 +1,18 @@
+id: test-custom-policy
+name: test-custom-policy
+description: test policy
+category: Custom
+type: custom
+resourceLevelSupported: true
+encryptionSupported: false
+standalone: true
+requiredCharacteristics: []
+providedCharacteristics: []
+configuration: 
+  - propertyName: testProperty
+    name: Test Property
+    type: string
+    description: put something in
+    optional: true
+    sensitive: false
+    allowMultiple: false
