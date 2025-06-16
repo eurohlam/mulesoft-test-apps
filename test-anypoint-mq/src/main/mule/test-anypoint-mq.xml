@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	
+	<configuration-properties doc:name="Configuration properties" doc:id="ea11f126-a50a-4ff2-867f-765c82d186a1" file="mq.properties" />
+
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="27b94eb1-c78d-4228-a5c2-5f5e92b5af41" basePath="/api">
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	
+	<anypoint-mq:config name="Anypoint_MQ_Config" doc:name="Anypoint MQ Config" doc:id="c81f7c3d-871e-4a49-85fb-0377f9b035ad">
+		<anypoint-mq:connection clientId="${mq.clientId}" clientSecret="${mq.clientSecret}" url="${mq.url}"/>
+	</anypoint-mq:config>
+	
+	
+	<flow name="test-anypoint-mq-publisher" doc:id="bf32e3db-cdc0-4a34-8c9b-a0773633185d" >
+		<http:listener doc:name="Listener" doc:id="dfe3d431-0fe0-4d2f-b88a-68c6e5611c36" config-ref="HTTP_Listener_config" path="/mq"/>
+		<logger level="INFO" doc:name="Logger" doc:id="467ae600-e7f8-4df0-a7b5-c16a69b8f695" message="This is MQ endpoint"/>
+		<set-payload value="&lt;root&gt;&lt;message&gt;This is test payload from my app&lt;/message&gt;&lt;/root&gt;" doc:name="Set Payload" doc:id="86e1d1cd-fead-4dcc-b16a-82f3c19fdd29" />
+		<ee:transform doc:name="Transform Message" doc:id="57be95e6-8c42-4fb4-ad80-ec026562a107" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+typeOf(payload)
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="fcd44267-ccce-4449-8e4a-7e1c076678b3" message="Publishing message into MQ #[payload]"/>
+		<anypoint-mq:publish doc:name="Publish" doc:id="6109ea89-dd39-454b-bd0e-74cd5f50aab2" config-ref="Anypoint_MQ_Config" destination="${mq.queue}"/>
+	</flow>
+	
+	<flow name="test-anypoint-mq-subscriber" doc:id="2243f038-b264-465a-8782-76fec25fff64" >
+		<anypoint-mq:subscriber doc:name="Subscriber" doc:id="7f67a876-a98e-4e78-b9fc-4b87f99761e2" config-ref="Anypoint_MQ_Config" destination="${mq.queue}">
+			<anypoint-mq:circuit-breaker errorsThreshold="5" tripTimeout="60000" />
+		</anypoint-mq:subscriber>
+		<logger level="INFO" doc:name="Logger" doc:id="b0dfda46-fa6a-406a-a083-65c49b6356af" message="Received message from MQ #[payload]"/>
+	</flow>
+</mule>
