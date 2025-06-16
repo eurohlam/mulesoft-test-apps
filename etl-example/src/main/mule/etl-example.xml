@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="9cde420b-239d-4d0c-bd23-9b3950f9deb8" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	
+	<flow name="etl-exampleFlow" doc:id="6295d099-3647-4167-b60c-583000906f9c" >
+		<file:listener doc:name="On New or Updated File" doc:id="a5f5835b-4a70-4e3d-8ff8-222b4d6ed2c3" directory="/Users/eurohlam/AnypointStudio/workspace7/etl-example/in" timeBetweenSizeCheck="15" timeBetweenSizeCheckUnit="SECONDS">
+			<repeatable-in-memory-stream />
+			<scheduling-strategy >
+				<fixed-frequency frequency="45" startDelay="3" timeUnit="SECONDS"/>
+			</scheduling-strategy>
+		</file:listener>
+		<logger level="INFO" doc:name="Logger" doc:id="bfcff0ff-7d73-4767-91d8-44d2176a8dd3" message="New file processing #[attributes.fileName]  #[payload]" category="roag"/>
+		<batch:job jobName="etl-exampleBatch_Job" doc:id="2658a22e-dc72-4c2d-9180-c9ff20fd62fd" maxConcurrency="2" blockSize="3">
+			<batch:process-records >
+				<batch:step name="Batch_Step1" doc:id="14e9207d-6807-46ac-825e-75c3bf1565a0">
+					<logger level="INFO" doc:name="Logger" doc:id="bdbc3ddc-0561-40b1-be04-fdb1a1173fef" message="Step 1 Processing #[payload]" category="roag"/>
+					<choice doc:name="Choice" doc:id="760e4d24-3469-43ba-a6af-c7b9ba98c53d" >
+						<when expression="#[payload.name[0] == 'hren']">
+							<raise-error doc:name="Raise error" doc:id="592c5721-c8e4-4a93-9cee-fcdbf4801f51" type="HREN:HAPPENED" description="Hren happened"/>
+						</when>
+						<otherwise >
+							<set-variable value="#[output application/java --- payload.description]" doc:name="Set Variable" doc:id="c0606908-c5ea-4359-96f5-5f807314a3c1" variableName="myVar" />
+							<ee:transform doc:name="Transform Message" doc:id="41a1fd56-c776-4edc-8c11-a09c3a2a653c">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	num: payload.id[0],
+	name: payload.name[0]
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+						</otherwise>
+					</choice>
+					<logger level="INFO" doc:name="Logger" doc:id="776e58ca-61ff-4cab-a53d-00cf58e404e6" message="Step1 result  #[payload]" category="roag"/>
+				</batch:step>
+				<batch:step name="Batch_Step2" doc:id="01ec094c-a8d5-40d6-a7c3-948b4bb0dd8e">
+					<logger level="INFO" doc:name="Logger" doc:id="e0bf8ee0-fab3-4626-bc15-beb5a3a65d81" message="Step 2 Processing #[payload] for var #[vars.myVar]" category="roag"/>
+					<ee:transform doc:name="Transform Message" doc:id="4887f480-fdea-4f66-8b9d-fb2ddb0d0a35" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<logger level="INFO" doc:name="Logger" doc:id="4409a10e-451a-4ad7-a7dd-423ac57f9bc2" message="Result after Step 2 #[payload]" category="roag"/>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="2553ce97-f448-4bde-8cb1-77bf84a2c6ec" message="Complete #[payload as Object]" category="roag"/>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+	
+	<flow name="etl-exampleFlow1" doc:id="5b01a689-f251-427d-9f37-250b8af5b7f0" >
+		<http:listener doc:name="Listener" doc:id="ce72cf00-0b43-480d-84d9-d88ac4a05b67" config-ref="HTTP_Listener_config" path="/"/>
+		<set-payload value='#[output applications/json&#10;&#10;var objects = {&#10;	"account": {&#10;		"id": "1",&#10;		"name": "jopa"&#10;	},&#10;	"account": {&#10;		"id": "2",&#10;		"name": "piska"&#10;	},&#10;	"account": {&#10;		"id": "3",&#10;		"name": "titka"&#10;	},&#10;}&#10;---&#10;objects]' doc:name="Set Payload" doc:id="15ffb892-08de-48bc-b0ee-fc06640e0f4f" />
+		<foreach doc:name="For Each" doc:id="9957592e-ba52-48d3-bde1-13150be17f00" batchSize="2">
+			<logger level="INFO" doc:name="Logger" doc:id="5def395c-8d6e-4449-adb3-289531e6b990" message="#[payload]"/>
+			<file:write doc:name="Write" doc:id="4dfaa4a3-6255-4fed-90aa-c29ee3dd92b1" path='#["data/account-" ++ random()]'>
+				<file:content ><![CDATA[#[output application/json
+---
+payload]]]></file:content>
+			</file:write>
+		</foreach>
+	</flow>
+</mule>
