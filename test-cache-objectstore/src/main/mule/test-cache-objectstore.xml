@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	
+	<http:listener-config name="HTTPS_Listener_config" doc:name="HTTP Listener config" doc:id="934bde4f-ad2c-4547-85f9-5cbcf279aef5" >
+		<http:listener-connection host="0.0.0.0" port="8081" protocol="HTTPS">
+			<tls:context >
+				<tls:key-store type="jks" path="test_keystore.jks" alias="test" keyPassword="test" password="test" />
+			</tls:context>
+		</http:listener-connection>
+	</http:listener-config>
+	
+	<ee:object-store-caching-strategy name="Caching_Strategy" doc:name="Caching Strategy" doc:id="227e4302-448b-48ef-8726-7c81000a68b7" keyGenerationExpression="#[vars.customerId]" />
+	
+	<os:object-store name="Object_store" doc:name="Object store" doc:id="80376d06-0c20-439b-922a-a7bc1f3b8e70" entryTtl="1" expirationInterval="30" expirationIntervalUnit="SECONDS" />
+	
+	<flow name="test-triggerFlow" doc:id="41be04d2-7f91-4547-9390-01e8e11022fe" >
+		<http:listener doc:name="HTTPS Listener" doc:id="89172d30-25e7-432f-8cb3-6725ede93511" config-ref="HTTPS_Listener_config" path="/"/>
+		<set-variable value='#[attributes.queryParams.id default "1"]' doc:name="Set customerId" doc:id="fe7e576c-3252-4e50-a8b3-dae0ffd24d6e" variableName="customerId"/>
+		<logger level="INFO" doc:name="Logger" doc:id="5daff25d-9301-454e-a239-3de5aac6c9da" message='Triggered for id #[attributes.queryParams.id] and type #[attributes.queryParams."type"]'/>
+		<set-payload value="pong" doc:name="Set Payload" doc:id="53197f0e-8ed7-462c-90b8-b61661828154" />
+		<choice doc:name="Choice" doc:id="36a03613-1f37-456e-ae3e-8673513e4b7e" >
+			<when expression='#[attributes.queryParams."type" == "objectStore"]'>
+				<flow-ref doc:name="objectstore-subflow" doc:id="20f18d1f-8063-4e50-89aa-6d2bb1c7dbb3" name="objectstore-subflow"/>
+			</when>
+			<otherwise >
+				<flow-ref doc:name="cache-flow" doc:id="3aa34570-b8b4-48c0-b1d8-96b08ccd2d86" name="cache-flow" />
+			</otherwise>
+		</choice>
+	</flow>
+	
+	<flow name="cache-flow" doc:id="6eaa3a42-b3a4-43dc-b20a-d353ff92afc5" >
+		<logger level="INFO" doc:name="Logger" doc:id="32ef3cd2-a3b1-46e0-a8e6-9e05bbfbf5d1" message="Running cache flow for customerId=#[vars.customerId]"/>
+		<ee:cache doc:name="Cache" doc:id="5581368c-fe25-4736-9c7c-1a2769ff5fcc" cachingStrategy-ref="Caching_Strategy">
+			<logger level="INFO" doc:name="Logger" doc:id="06ec89ba-b2e0-49a1-b4a2-5d814f5f3dbc" message="Inside cache scope"/>
+			<http:request method="GET" doc:name="Request" doc:id="216303c1-3f74-4ee0-a774-9c903372452a" url="https://roundkick.nz"/>
+			<set-variable value="#[attributes.statusCode]" doc:name="Set status" doc:id="84f24851-3be6-4e33-9e0d-e5fce1414915" variableName="status"/>
+			<logger level="INFO" doc:name="Log response status" doc:id="dd6a4ae2-e04f-4f6b-b070-031ecd3d370c" message="Response status inside cache scope: #[vars.status]"/>
+		</ee:cache>
+		<logger level="INFO" doc:name="Log response status" doc:id="57222409-ac87-4cf3-91fc-894d131e2f4f" message="Response status: #[vars.status]"/>
+	</flow>
+	
+	<sub-flow name="objectstore-subflow" doc:id="f519a81e-066a-4097-917c-59f818f2a30c" >
+		<set-payload value="test Payload" doc:name="Set Payload" doc:id="ee2cf78c-7449-44c5-a123-7ba585cb5759" />
+		<set-variable value='#[attributes.queryParams."timeout" default 12000]' doc:name="Set timeout" doc:id="aade1854-e741-4841-9f2b-55e029723398" variableName="timeout"/>
+		<logger level="INFO" doc:name="Logger" doc:id="c4231caf-4c87-4779-a6b5-2818af73438a" message="Running objectStore flow for payload #[payload] and timeout #[vars.timeout]"/>
+		<os:store doc:name="Store" doc:id="801ff976-846d-4802-b7e4-5e77d07f193e" objectStore="Object_store" key="testKey"/>
+		<ee:transform doc:name="waiting" doc:id="71bf5dce-3304-46da-93b3-7ed45e4a86b7" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import * from dw::Runtime
+
+output application/json
+---
+{"wait": vars.timeout} wait vars.timeout]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="52b83d8f-fe11-463a-bd68-61bd86945b1b" message="Payload before retrival from objectStore #[payload]"/>
+		<os:retrieve doc:name="Retrieve" doc:id="4c7802d9-85a8-4178-849d-107529d4d186" key="testKey" objectStore="Object_store">
+			<os:default-value ><![CDATA[default payload]]></os:default-value>
+		</os:retrieve>
+		<logger level="INFO" doc:name="Logger" doc:id="f4e3874e-3c43-4632-b961-753d4f26608f" message="Resulted payload #[payload]"/>
+	</sub-flow>
+	
+</mule>
