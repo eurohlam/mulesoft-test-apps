@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="d67816ff-586d-47ac-b0a2-27aff4c103ca" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="cbc532fd-1a35-415c-b6e8-3af28138587a" file="app.properties" key="encryptKey" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	
+	<flow name="test-secure-propertiesFlow" doc:id="c67c867a-c60c-46d6-8591-bd16a456055e" >
+		<http:listener doc:name="Listener" doc:id="130f4754-fdab-4e43-9938-1413f106ce0b" config-ref="HTTP_Listener_config" path="/"/>
+		<logger level="INFO" doc:name="Logger" doc:id="9d8862b6-e517-4aa0-aaaa-37bc9bdefbd6" message="Properties: db.url=${secure::database.url}, db.user=${secure::database.user}, db.password=${secure::database.password}"/>
+		<ee:transform doc:name="Extract secure properties via dataweave" doc:id="2defc676-f2c2-4932-8393-a3f45b66194a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"url": p('secure::database.url'),
+	"user": p('secure::database.user'),
+	"pwd": p('secure::database.password')
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="dbed07f5-b4e1-4573-bc76-395b186d1a2c" message="Dataweave result #[payload] "/>
+	</flow>
+</mule>
