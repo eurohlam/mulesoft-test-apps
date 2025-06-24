@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd">
+	<munit:config name="test-test-suite.xml" />
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="3bbfcde6-c6bc-413e-934e-fbea4d0068fa" />
+	<ee:object-store-caching-strategy name="Caching_Strategy" doc:name="Caching Strategy" doc:id="f06f5c3c-d75f-4a1f-bba1-3039d96a5ec0" keyGenerationExpression="#[vars.id]" />
+	<munit:test name="test-spy" doc:id="21b8fea7-e6b6-40a9-b973-3aa86d4f3501" description="Test">
+		<munit:behavior >
+			<munit-tools:spy doc:name="Spy" doc:id="44af0e36-c2de-470b-a5d3-6a6d3dbe11c0" processor="http:request">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="HTTP_Request_configuration" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+				<munit-tools:before-call >
+					<munit-tools:assert-that doc:name="Assert that" doc:id="cfe4fc3b-e6a5-41d4-8eee-00eb9d1fa169" is="#[MunitTools::nullValue()]" expression="#[payload]"/>
+				</munit-tools:before-call>
+				<munit-tools:after-call >
+					<munit-tools:assert-that doc:name="Assert that" doc:id="0a93a254-eeb7-4062-8164-428e23acc9f8" is="#[MunitTools::notNullValue()]" expression="#[payload]"/>
+				</munit-tools:after-call>
+			</munit-tools:spy>
+			<munit-tools:mock-when doc:name="Mock when" doc:id="4188159a-770e-4268-a138-87aff6e2f05d" processor="http:request">
+				<munit-tools:with-attributes >
+					<munit-tools:with-attribute whereValue="HTTP_Request_configuration1" attributeName="config-ref" />
+				</munit-tools:with-attributes>
+				<munit-tools:then-return >
+					<munit-tools:payload value='#[output application/xml &#10;---&#10;{&#10;	html:&#10;		body: "sometext"&#10;}]' mediaType="application/xml" />
+				</munit-tools:then-return>
+			</munit-tools:mock-when>
+		</munit:behavior>
+		<munit:execution >
+			  <flow-ref doc:name="Flow-ref to testFlow" doc:id="0dd667b4-c165-418f-8366-ecb3aa19c9af" name="get:\hello:ra-test-app-config"/> 
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-that doc:name="Assert that" doc:id="79d7ee3b-8dc9-4e4a-9d50-d812d632b97f" expression="#[true]" is="#[MunitTools::equalTo(true)]"/>
+		</munit:validation>
+	</munit:test>
+	<munit:test name="test-array-validation" doc:id="4fdeef5c-5bc6-4234-bbaa-d6b5fece7ef9" expectedErrorType="VALIDATION:NOT_EMPTY_COLLECTION">
+		<munit:execution >
+			<ee:transform doc:name="Transform Message" doc:id="f831d600-f5ac-49da-97ab-378c620880ae" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+[""]]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<validation:is-empty-collection doc:name="Is empty collection" doc:id="a7b8b965-511a-4554-86a4-48a2d66958d9" />
+			<set-payload value="done" doc:name="Set Payload" doc:id="f7d5ebcd-8835-400a-96c9-bbd57c555dc4" />
+			<logger level="INFO" doc:name="Logger" doc:id="83689dbc-38e8-4212-a936-cbe1aa64c69f" message="#[payload]"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-equals doc:name="Assert equals" doc:id="64694f09-c384-4a12-8f83-df4a44892860" actual="#[payload]" expected="done"/>
+		</munit:validation>
+	</munit:test>
+	<munit:test name="test-cache" doc:id="fd5a6a86-e884-4b1c-96ec-93316ea73d3b" >
+		<munit:execution >
+			<set-variable value="#[1]" doc:name="Set Variable" doc:id="8ac0d2c2-d845-4da0-8b15-92eda79d6a41" variableName="id" />
+			<foreach doc:name="For Each" doc:id="eaf4df5b-7c52-4c09-9b30-ded43e52e33e" collection="#[[0,1]]">
+				<logger level="INFO" doc:name="Logger" doc:id="41f8e8b2-ef46-4e26-82d8-f9d3613454df" message="Step: #[vars.counter]"/>
+				<ee:cache doc:name="Cache" doc:id="d14287b5-40cd-46f1-8bb9-1aa47aaeb9c8" cachingStrategy-ref="Caching_Strategy">
+				<logger level="INFO" doc:name="Logger" doc:id="895e038e-abbc-49cf-abde-8d92993c82d5" message="Inside cache scope"/>
+				<set-variable value="#[attributes.statusCode]" doc:name="Set Variable" doc:id="22e36eb9-000d-4664-a07a-6550a56c0bbe" variableName="status" />
+			</ee:cache>
+				<logger level="INFO" doc:name="Logger" doc:id="b5942bd2-5857-4754-b0fd-d79c7181d646" message="Response #[vars.status]" />
+			</foreach>
+		</munit:execution>
+	</munit:test>
+	<munit:test name="test-secure-properties" doc:id="959d4e48-01de-41c2-bb01-1bd2e3f70846" >
+		<munit:execution >
+			<set-variable value="${secure::encrypted.prop}" doc:name="Set encryptedProp" doc:id="f593fad1-848f-4771-b777-4ac575db1fda" variableName="encryptedProp"/>
+			<set-variable value="${secure::testProperty}" doc:name="Set plainProp" doc:id="084f5a9e-c04f-4ab0-8f94-c957dc84e996" variableName="plainProp"/>
+			<logger level="INFO" doc:name="Logger" doc:id="2cf6a438-fb60-4c05-8b0d-d76fe8783a75" message="encryptedProp=#[vars.encryptedProp]; plainProp=#[vars.plainProp]" category="ra.test"/>
+		</munit:execution>
+		<munit:validation >
+			<munit-tools:assert-that doc:name="Assert that" doc:id="527d77c7-2150-48de-a951-f9f1f68099ab" expression="#[vars.encryptedProp]" is="#[MunitTools::notNullValue()]"/>
+		</munit:validation>
+	</munit:test>
+
+
+</mule>

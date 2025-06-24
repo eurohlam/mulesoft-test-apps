@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:test-xml-sdk="http://www.mulesoft.org/schema/mule/test-xml-sdk" 
+xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" 
+xmlns:tls="http://www.mulesoft.org/schema/mule/tls" 
+xmlns:os="http://www.mulesoft.org/schema/mule/os" 
+xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" 
+xmlns="http://www.mulesoft.org/schema/mule/core" 
+xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" 
+xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/test-xml-sdk http://www.mulesoft.org/schema/mule/test-xml-sdk/current/mule-test-xml-sdk.xsd">
+    
+    <http:listener-config name="ra-test-app-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="8081">
+		</http:listener-connection>
+    </http:listener-config>
+    
+    <apikit:config name="ra-test-app-config" api="resource::acd0233f-3db8-4edb-aae5-914767ffe274:ra-test-api:1.0.1:raml:zip:ra-test-app.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    
+    <api-gateway:autodiscovery apiId="20246483" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="831b95ab-ee36-4415-8487-469c34f10ac5" flowRef="ra-test-app-main" />
+	
+	<os:object-store name="Object_store" doc:name="Object store" doc:id="c47b2ad4-72c2-4c27-a396-9927301413e6" expirationInterval="5" entryTtl="60"/>
+	
+	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="8f131d28-ae9f-4f0b-b9cc-e72bb62ed563" >
+		<http:request-connection protocol="HTTPS" >
+			<tls:context >
+				<tls:trust-store path="test_truststore.jks" password="test" type="jks" insecure="true"/>
+				<tls:key-store type="jks" path="test_keystore.jks" alias="test2" keyPassword="test" password="test" />
+			</tls:context>
+		</http:request-connection>
+	</http:request-config>
+	
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="3850b0e0-82e6-4f71-b834-e626fb0cccb8" file="app.properties" key="testKey" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	
+	<http:listener-config name="TLS_Listener_config" doc:name="HTTP Listener config" doc:id="3cf45f33-d527-4396-8588-300ba141694a" >
+		<http:listener-connection protocol="HTTPS" host="0.0.0.0" port="8082" >
+			<tls:context >
+				<tls:trust-store path="test_truststore.jks" password="test" type="jks" />
+				<tls:key-store type="jks" path="test_keystore.jks" alias="test2" keyPassword="test" password="test" />
+			</tls:context>
+		</http:listener-connection>
+	</http:listener-config>
+	<flow name="ra-test-app-main">
+        <http:listener config-ref="ra-test-app-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <logger level="INFO" doc:name="Logger" doc:id="689e17ea-0278-461c-957b-338a98941133" message="Request from #[attributes.remoteAddress] #[message]" category="ra.test"/>
+		<apikit:router config-ref="ra-test-app-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    
+    <flow name="get:\hello:ra-test-app-config" doc:id="5f23d6d4-f2cd-4365-97b1-df3f09e0b14a">
+        <os:retrieve doc:name="Retrieve" doc:id="0c0d620c-33c0-4092-b1f0-2e3078a88385" key="payload" objectStore="Object_store">
+			<os:default-value ><![CDATA[nullPayload]]></os:default-value>
+		</os:retrieve>
+		<choice doc:name="Choice" doc:id="488f419e-e3de-4ecf-8fd1-949471ff5982" >
+			<when expression="payload != 'nullPayload'">
+				<logger level="INFO" doc:name="Logger" doc:id="9af843c8-7169-4eb2-8b86-0600bb22f1d8" message="Retrived payload from objectStore #[payload]" category="ra.test"/>
+				<os:clear doc:name="Clear" doc:id="71317f3c-2892-469c-a702-ff15e8cd3a41" objectStore="Object_store"/>
+			</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="35983dcc-ff31-47f4-b6dd-5c37e8c582ef" message="nullPayload found" category="ra.test"/>
+				<ee:transform doc:name="Transform Message">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Hello!"
+} as Object {encoding: "UTF-8", mediaType: "application/json"}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+				<os:store doc:name="Store" doc:id="b7b10af8-02e0-4320-90bd-381a06d19a8b" key="payload" objectStore="Object_store" >
+					<os:value ><![CDATA[#[{
+	"message": "cached response"	
+}]]]></os:value>
+				</os:store>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="397c7d10-ee1e-4e23-90a7-6c073c69ae1b" message="Response #[payload]" category="ra.test"/>
+		<http:request method="GET" doc:name="Request" doc:id="897928d7-0dcd-4480-9fa1-6d2a70601b60" config-ref="HTTP_Request_configuration1" url="https://localhost:8082"/>
+    
+</flow>
+
+	<flow name="ra-test-appFlow" doc:id="e9876a9e-ed6d-46a2-be7c-259268b9d2bd" >
+		<http:listener doc:name="Listener" doc:id="f399ed8f-6e7e-4483-82d3-db5ab335bf55" config-ref="TLS_Listener_config" path="/"/>
+		<logger level="INFO" doc:name="Logger" doc:id="64bfff69-7945-49f0-86ad-0f9222c817b9" message="Received via HTTPS: #[payload] #[message]" category="ra.test"/>
+		<set-payload value='#[output application/json&#10;---&#10;{&#10;	message: "Yey!"&#10;}]' doc:name="Set Payload" doc:id="117ac101-1d6a-4694-b1b6-127f264a7ae2" />
+		<flow-ref doc:name="Flow Reference" doc:id="787a00b6-52f9-44ac-b1c5-65f64eb6cb23" name="ra-test-toBase64"/>
+	</flow>
+	<flow name="ra-test-toBase64" doc:id="cd926396-8939-4500-97aa-a001fbc329ed" >
+		<ee:transform doc:name="Transform Message" doc:id="19988985-007a-426a-9bf8-0af4e70f8ae7">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+import toBase64 from dw::core::Binaries
+
+output application/java
+
+var var1 = "test1"
+var var2 = "test2"
+---
+if (var1 != var2) toBase64((var1 ++ var2) as Binary) else "Nothing"
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="19cdcefd-2c87-43bc-8705-a5a826722cc5" message="base64 payload #[payload]"/>
+		<test-xml-sdk:process-strings doc:name="Process strings" doc:id="63d84892-a853-4de2-937d-7e43efd1adfd" string1="Hello" string2="Medved"/>
+		<logger level="INFO" doc:name="Logger" doc:id="77d3050c-d372-4817-b0aa-3861d5b3bac0" message="Payload after custom XML SDK connector #[payload]"/>
+	</flow>
+
+</mule>

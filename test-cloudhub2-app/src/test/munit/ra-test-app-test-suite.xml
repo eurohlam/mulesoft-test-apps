@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:munit="http://www.mulesoft.org/schema/mule/munit" xmlns:munit-tools="http://www.mulesoft.org/schema/mule/munit-tools"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+		http://www.mulesoft.org/schema/mule/munit-tools  http://www.mulesoft.org/schema/mule/munit-tools/current/mule-munit-tools.xsd">
+	<munit:config name="ra-test-app-test-suite.xml" />
+	<munit:test name="ra-test-app-test-suite-ra-test-toBase64Test" doc:id="64f5046f-36cf-4667-a943-1058d0dc5f9e" description="Test">
+		<munit:execution >
+			<flow-ref doc:name="Flow-ref to ra-test-toBase64" doc:id="e7c9445e-4a0e-441e-8fbf-a7bf0dc96b16" name="ra-test-toBase64"/>
+		</munit:execution>
+	</munit:test>
+
+
+</mule>
