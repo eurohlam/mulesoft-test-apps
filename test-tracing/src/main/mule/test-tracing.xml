@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:tracing="http://www.mulesoft.org/schema/mule/tracing" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/tracing http://www.mulesoft.org/schema/mule/tracing/current/mule-tracing.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="e6d6d5d8-72ce-4e78-9a52-4e9d9630026f" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="test-tracingFlow" doc:id="72943286-f477-4642-91d9-da9c4c1d973b" >
+		<http:listener doc:name="Listener" doc:id="e6c3a9b5-4184-4e23-9f7f-ce2de7725552" config-ref="HTTP_Listener_config" path="/trace"/>
+		<logger level="INFO" doc:name="Logger with default correlationId" doc:id="d418d38f-e919-45ea-8def-859803749a9b" message="Input request with default correlationd=#[correlationId] #[payload] #[message]"/>
+		<tracing:with-correlation-id doc:name="With CorrelationID" doc:id="bd9bc761-e308-4ff0-9532-607b8c633799" correlationId="#[payload.transactionId]">
+			<logger level="INFO" doc:name="Logger with overwritten correlationId" doc:id="6bc1a94a-2356-4298-a633-ecba31e7958f" message="Logger with overwritten correlationId=#[payload.transactionId]"/>
+		</tracing:with-correlation-id>
+		<tracing:set-logging-variable doc:name="Set logging variable" doc:id="c7ed352e-649a-458c-9eb5-be956fc1f8e9" variableName="orderId" value="#[payload.orderId]"/>
+		<logger level="INFO" doc:name="Logger with MDC" doc:id="884237db-c532-4e1d-b4a9-29893ec4812d" message="Tracing logs with MDC orderId=#[payload.orderId]"/>
+		<tracing:clear-logging-variables doc:name="Clear logging variables" doc:id="30b834ff-4406-4c6b-b17f-d545d5279c85" />
+		<logger level="INFO" doc:name="Logger" doc:id="ff7d24b8-d9e0-4efe-9457-b75e981b3378" message="Final log with default pattern"/>
+	</flow>
+</mule>
